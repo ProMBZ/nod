@@ -249,6 +249,7 @@ export interface AppSetupStatus {
     logoUrl?: string;
     pairingConfirmed?: boolean;
     available?: boolean;
+    error?: string;
   }>;
 }
 export interface Configuration {
@@ -256,6 +257,7 @@ export interface Configuration {
   model: string;
   llmReady: boolean;
   modelReconnect: boolean;
+  modelChecking?: boolean;
   modelIssue?: ModelIssue;
   modelAlternative?: ModelSelection & { label: string };
   integrationsReady: boolean;
