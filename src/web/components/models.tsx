@@ -734,8 +734,9 @@ export function ModelSettings({ onDirtyChange }: { onDirtyChange?(dirty: boolean
                           {data.selection?.connectionId === connection.id && (
                             <span className="model-connection-meta model-connection-selected">
                               Current model:{' '}
-                              {connection.models.find((model) => model.id === data.selection.modelId)
-                                ?.name ?? data.selection.modelId}
+                              {connection.models.find(
+                                (model) => model.id === data.selection?.modelId,
+                              )?.name ?? data.selection.modelId}
                             </span>
                           )}
                         </div>
