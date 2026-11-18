@@ -741,6 +741,13 @@ export function ModelSettings({ onDirtyChange }: { onDirtyChange?(dirty: boolean
                         </div>
                       </div>
                       <div className="model-service-actions">
+                        {data.selection?.connectionId === connection.id && available && (
+                          <ModelPicker
+                            appearance="quiet"
+                            label="Change model"
+                            manageConnections={false}
+                          />
+                        )}
                         {connection.status === 'reconnect' && !connection.managed && (
                           <Button
                             type="button"
