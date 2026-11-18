@@ -15,7 +15,7 @@ Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Documentation-only changes
 
-For a docs-only change, you do not need to install or run Nod, start Docker, or connect a model. From the repository root, install the docs dependencies and start the site:
+For a docs-only change, you do not need to install or run Nod, start Docker, or connect a model. You need Node.js 24.21.0 or newer and pnpm 10.34.5 installed. From the repository root, install the docs dependencies and start the site:
 
 ```sh
 pnpm --dir docs install --frozen-lockfile
