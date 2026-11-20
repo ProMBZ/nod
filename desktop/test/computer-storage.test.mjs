@@ -7,7 +7,11 @@ import test from 'node:test';
 
 import { createSettingsStore } from '../main/settings.mjs';
 
-import { preloadRuntimeImages, removeComputer } from '../runtime/index.mjs';
+import {
+  preloadRuntimeImages,
+  removeComputer,
+  removeUnmountedRuntimes,
+} from '../runtime/index.mjs';
 import {
   computerIdentity,
   assertComputerStoragePathSafe,
@@ -89,6 +93,13 @@ test('a selected folder must be writable and have the required free space', asyn
       minimumFreeBytes: Number.MAX_SAFE_INTEGER,
     }),
     /needs at least .* GB free/,
+  );
+
+  await assert.rejects(
+    validateComputerDirectory(directory, {
+      statfsImpl: async () => ({ bavail: 49 * 1024 ** 3, bsize: 1 }),
+    }),
+    /needs at least 50 GB free/,
   );
 
   const valid = await validateComputerDirectory(directory, {
@@ -324,3 +335,61 @@ test(
     await assert.rejects(readFile(join(ownComputer, 'synthetic-disk')));
   },
 );
+
+test('runtime image preloading rejects a symlinked custom namespace before contacting Docker', async (t) => {
+  const root = await temporary(t);
+  const dataRoot = join(root, 'profile');
+  const directory = join(root, 'selected');
+  const outside = join(root, 'outside');
+  await mkdir(dataRoot);
+  await mkdir(directory);
+  await mkdir(outside);
+  await symlink(outside, join(directory, '.nod-desktop'));
+
+  let dockerCalls = 0;
+  await assert.rejects(
+    preloadRuntimeImages({
+      dataRoot,
+      assets: join(root, 'assets'),
+      computerDirectory: directory,
+      platform: 'linux',
+      home: join(root, 'home'),
+      executeImpl: async () => {
+        dockerCalls++;
+        return '';
+      },
+    }),
+    /not a normal directory/,
+  );
+  assert.equal(dockerCalls, 0);
+});
+
+test('runtime cleanup keeps packs mounted by sibling custom profiles', async (t) => {
+  const root = await temporary(t);
+  const directory = join(root, 'selected');
+  const cacheRoot = join(root, 'runtime-cache');
+  const current = join(cacheRoot, 'a'.repeat(64));
+  const retained = join(cacheRoot, 'b'.repeat(64));
+  const stale = join(cacheRoot, 'c'.repeat(64));
+  const siblingLima = join(directory, '.nod-desktop', 'another-profile', 'nod');
+  await mkdir(current, { recursive: true });
+  await mkdir(retained, { recursive: true });
+  await mkdir(stale, { recursive: true });
+  await mkdir(siblingLima, { recursive: true });
+  await writeFile(join(retained, 'marker'), 'keep');
+  await writeFile(join(stale, 'marker'), 'remove');
+  await writeFile(
+    join(siblingLima, 'lima.yaml'),
+    JSON.stringify({ mounts: [{ location: retained }] }),
+  );
+
+  await removeUnmountedRuntimes(current, {
+    computerDirectory: directory,
+    home: join(root, 'home'),
+    cacheRoot,
+    olderThan: Date.now() + 60_000,
+  });
+
+  assert.equal(await readFile(join(retained, 'marker'), 'utf8'), 'keep');
+  await assert.rejects(readFile(join(stale, 'marker')));
+});
