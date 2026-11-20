@@ -534,6 +534,7 @@ async function prepare(options, onComputerStart) {
   };
   return finishRuntime({
     dataRoot,
+    computerDirectory: options.computerDirectory,
     resourcesPath,
     assets,
     manifest,
@@ -719,6 +720,7 @@ export async function replaceContainer(
 
 export async function finishRuntime({
   dataRoot,
+  computerDirectory,
   resourcesPath,
   assets,
   manifest,
@@ -952,7 +954,7 @@ exec "$docker" "$@"
     environment: env,
     postgres,
     port,
-    close: () => stopRuntime({ dataRoot, resourcesPath }),
+    close: () => stopRuntime({ dataRoot, resourcesPath, computerDirectory }),
   };
   signal?.throwIfAborted();
   await onStorageReady?.(runtime);
