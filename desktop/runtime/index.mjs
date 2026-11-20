@@ -251,8 +251,8 @@ async function prepare(options, onComputerStart) {
     if (selected !== resolve(options.computerDirectory)) {
       throw new Error('The private-computer storage folder changed after it was selected. Choose it again in Settings.');
     }
-    await assertComputerStoragePathSafe(dataRoot, options.computerDirectory);
   }
+  await assertComputerStoragePathSafe(dataRoot, options.computerDirectory);
   await mkdir(dataRoot, { recursive: true, mode: 0o700 });
   const controlRoot = join(dataRoot, 'desktop-runtime');
   await mkdir(controlRoot, { recursive: true, mode: 0o700 });
