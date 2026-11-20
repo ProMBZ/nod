@@ -155,6 +155,13 @@ test('default computer storage rejects a symlinked namespace before startup and 
     assertComputerStoragePathSafe(dataRoot, undefined, { platform: 'linux', home }),
     /not a normal directory/,
   );
+
+  await rm(join(home, '.nod-desktop'), { recursive: true, force: true });
+  await symlink(outside, join(dataRoot, 'desktop-runtime'));
+  await assert.rejects(
+    assertComputerStoragePathSafe(dataRoot, undefined, { platform: 'win32', home }),
+    /not a normal directory/,
+  );
 });
 
 test('custom computer namespaces reject symbolic links before Lima or WSL can follow them', async (t) => {
