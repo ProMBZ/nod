@@ -44,9 +44,13 @@ export async function verifyApplicationRuntime(
     executable = join(application, 'Contents/MacOS/nod'),
   } = {},
 ) {
+  const packagedResources =
+    process.platform === 'darwin'
+      ? join(application, 'Contents/Resources')
+      : join(application, 'resources');
   const packagedComputerStorage = join(
-    application,
-    'Contents/Resources/app/runtime/computer-storage.mjs',
+    packagedResources,
+    'app/runtime/computer-storage.mjs',
   );
   await access(packagedComputerStorage);
   const packagedComputerStorageUrl = pathToFileURL(packagedComputerStorage).href;
