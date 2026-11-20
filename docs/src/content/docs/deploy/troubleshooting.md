@@ -137,6 +137,12 @@ Install a Nod build with the container profile repair, then quit and reopen Nod.
 
 If setup still fails, select **Show startup log** and [report a bug](#report-a-bug-with-a-diagnostic-report). This error alone does not show whether the database files are damaged.
 
+### Nod cannot use the selected private-computer folder
+
+Check that the folder still exists, the drive is mounted, your account can write to it, and at least 50 GB is free. Reconnect an external drive before opening Nod or changing its storage location. Nod keeps the previous computer in place if it cannot access that drive to remove it safely.
+
+On the Linux Flatpak, choose a folder under your home directory, `/media` or `/run/media`. Other mount points are outside the sandbox's existing filesystem permissions.
+
 ## Models and apps
 
 ### An app connection fails
