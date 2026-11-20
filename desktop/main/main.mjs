@@ -3368,7 +3368,7 @@ else {
           type: 'warning',
           message: 'Recreate your private computer in this folder?',
           detail:
-            'This is not a move. Nod will permanently delete the existing private computer and create a new one in the selected folder. Files, installed tools and local databases stored only inside that computer will be lost. Your Nod conversations, memories, saved connections and app settings will be kept. Nothing changes if you cancel.',
+            'This is not a move. Nod will permanently delete the existing private computer and create a new one in the selected folder. All local assistant data stored inside that computer will be lost, including conversations, memories, browser profiles, workspace files, the local database, and saved model and app connections. Your desktop app preferences and settings remain. Export anything you need before continuing. Nothing changes if you cancel.',
           buttons: ['Recreate private computer', 'Cancel'],
           defaultId: 1,
           cancelId: 1,
