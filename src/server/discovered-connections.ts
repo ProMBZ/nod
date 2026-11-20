@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { bundledApps, appAccessPath, type BundledApp } from './app-catalog.ts';
 import { appRequestUrl, appRequestHeaders } from './app-requests.ts';
-import { appEnvironmentNameSchema, appDefinitionSchema } from '../shared/app-definitions.ts';
+import { appCliArgvSchema, appEnvironmentNameSchema, appDefinitionSchema } from '../shared/app-definitions.ts';
 import { appAccessSchema } from './app-access.ts';
 import { isDeepStrictEqual } from 'node:util';
 import type { FastifyInstance } from 'fastify';
