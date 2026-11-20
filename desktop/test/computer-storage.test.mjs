@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -71,7 +71,7 @@ test('a selected folder must exist, be a directory, and be separate from app dat
 
   const options = { dataRoot: profile, minimumFreeBytes: 0 };
   assert.equal(await validateComputerDirectory(directory, options), directory);
-  await assert.rejects(validateComputerDirectory(file, options), /real folder/);
+  await assert.rejects(validateComputerDirectory(file, options), /choose a folder/);
   await assert.rejects(validateComputerDirectory(join(root, 'missing'), options), /cannot use/);
   await assert.rejects(validateComputerDirectory(profile, options), /separate from Nod's application data/);
   assert.equal(await validateComputerDirectory(root, options), root);
@@ -180,6 +180,5 @@ test(
   assert.equal(await readFile(join(profile, 'settings.json'), 'utf8'), JSON.stringify({ computerDirectory: directory }));
   assert.equal(await readFile(join(otherComputer, 'synthetic-disk'), 'utf8'), 'other profile');
   await assert.rejects(readFile(join(ownComputer, 'synthetic-disk')));
-  assert.equal(await readFile(join(profile, 'settings.json'), 'utf8'), JSON.stringify({ computerDirectory: directory }));
   },
 );
