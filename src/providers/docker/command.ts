@@ -372,6 +372,12 @@ function runSupervisedCommand(options: {
   launch(): CommandProcess;
 }): Promise<{ stdout: Buffer; stderr: Buffer; exitCode: number }> {
   options.signal?.throwIfAborted();
+  if (options.args.some((argument) => argument.includes('\0'))) {
+    throw new WorkspaceCommandError(
+      false,
+      'Workspace command arguments must not contain null bytes.',
+    );
+  }
   const transportGraceMs = options.transportGraceMs ?? 0;
   if (!Number.isInteger(transportGraceMs) || transportGraceMs < 0 || transportGraceMs > 300_000)
     throw new Error('The workspace transport grace period is invalid.');
