@@ -579,7 +579,15 @@ export async function stopWindowsRuntime(options) {
   }
 }
 
-export async function removeWindowsComputer(dataRoot, computerDirectory) {
+export async function removeWindowsComputer(
+  dataRoot,
+  computerDirectory,
+  {
+    getEnvironment = windowsEnvironment,
+    listDistributions = distributions,
+    executeCommand = execute,
+  } = {},
+) {
   const distribution = distributionName(dataRoot);
   const computerPath = computerStoragePath(dataRoot, computerDirectory);
   const configPath = join(dataRoot, 'desktop-runtime/state.json');
@@ -597,11 +605,12 @@ export async function removeWindowsComputer(dataRoot, computerDirectory) {
       (computerDirectory && saved.computerPath !== computerPath))
   )
     throw new Error('The Nod computer configuration needs recovery.');
-  const env = windowsEnvironment();
+  const env = getEnvironment();
   const wsl = join(env.SYSTEMROOT, 'System32/wsl.exe');
-  const available = await distributions(wsl, env);
+  // A failed WSL listing must not strand the selected computer's files on disk.
+  const available = await listDistributions(wsl, env).catch(() => []);
   if (available.includes(distribution))
-    await execute(wsl, ['--unregister', distribution], { env, timeout: 300_000 });
+    await executeCommand(wsl, ['--unregister', distribution], { env, timeout: 300_000 });
   await rm(computerPath, { recursive: true, force: true });
   if (computerDirectory) {
     const profileStorage = join(computerDirectory, '.nod-desktop', computerIdentity(dataRoot));
