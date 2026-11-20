@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   configureHostCertificateBundle,
   hostCertificateBundle,
+  trustSystemCertificates,
 } from '../main/system-certificates.mjs';
 
 const paths = [
@@ -62,4 +63,28 @@ test('host CA selection does not affect non-Flatpak installations', () => {
     undefined,
   );
   assert.equal(env.SSL_CERT_FILE, undefined);
+});
+
+test('trustSystemCertificates uses injected environment and file reader', () => {
+  const env = { FLATPAK_ID: 'io.n8n.Nod' };
+  const reads = [];
+  const calls = [];
+  const tls = {
+    getCACertificates: (kind) => {
+      calls.push(['get', kind]);
+      return [];
+    },
+    setDefaultCACertificates: (certificates) => calls.push(['set', certificates]),
+  };
+
+  trustSystemCertificates(tls, env, (path) => {
+    reads.push(path);
+    if (path === paths[0]) return '-----BEGIN CERTIFICATE-----\nsynthetic';
+    throw new Error('Unexpected path');
+  });
+
+  assert.equal(env.SSL_CERT_FILE, paths[0]);
+  assert.deepEqual(reads, [paths[0]]);
+  assert.deepEqual(calls, [['get', 'system']]);
+  assert.equal(process.env.SSL_CERT_FILE, undefined);
 });
