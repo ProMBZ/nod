@@ -435,6 +435,15 @@ test('owner-entered overlay-network addresses accept CGNAT and Tailscale IPv6 or
   }
 });
 
+test('public OAuth sign-in destinations reject CGNAT and Tailscale IPv6 addresses', async () => {
+  const signIn = ownerAddress('http://127.0.0.1:5678', publicHttps);
+  for (const value of [
+    'https://100.64.0.10/oauth/token',
+    'https://[fd7a:115c:a1e0::1]/oauth/token',
+  ])
+    await assert.rejects(signIn(value), /Private network destinations are blocked/);
+});
+
 test('chat HTML cannot run scripts, submit forms, load trackers or link to local internals', () => {
   const result = render(
     '<u onclick="alert(1)" style="color:red">x</u><script>alert(1)</script><style>body{display:none}</style><iframe src="https://evil.example"></iframe><form action="/api/messages"><input name="text" value="bad"></form><img src="https://evil.example/track" onerror="alert(1)"><a href="javascript:alert(1)">bad</a><a href="/api/state">internal</a>\n\n![picture](https://evil.example/pixel)',
