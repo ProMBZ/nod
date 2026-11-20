@@ -2793,8 +2793,6 @@ async function quit(complete, failure = 'Nod could not finish shutting down.', u
 async function removeAllData() {
   if (quitting) return;
   if (remoteConnection) return replayOnboarding();
-  await recoverPendingComputerDirectoryChange();
-  const computerDirectory = (await settings.get()).computerDirectory;
   const { response } = await dialog.showMessageBox({
     type: 'warning',
     message: 'Remove all data and start over?',
@@ -2807,6 +2805,8 @@ async function removeAllData() {
   });
   if (response !== 0 || quitting) return;
   await quit(async () => {
+    await recoverPendingComputerDirectoryChange();
+    const computerDirectory = (await settings.get()).computerDirectory;
     const { removeProfile } = await import(
       pathToFileURL(join(engineRoot, 'desktop', 'runtime', 'index.mjs')).href
     );
