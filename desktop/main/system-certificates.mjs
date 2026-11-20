@@ -13,7 +13,9 @@ export function hostCertificateBundle(read = readFileSync) {
   for (const path of paths) {
     try {
       if (read(path, 'utf8').includes('-----BEGIN CERTIFICATE-----')) return path;
-    } catch {}
+    } catch {
+      continue;
+    }
   }
 }
 
