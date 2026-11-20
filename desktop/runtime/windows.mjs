@@ -308,6 +308,10 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
     throw new Error('The Windows transport failed its integrity check.');
   const distribution = distributionName(dataRoot);
   const computerPath = computerStoragePath(dataRoot, options.computerDirectory);
+  if (options.computerDirectory) {
+    await mkdir(computerPath, { recursive: true });
+    await protectWindowsProfile(computerPath, resourcesPath);
+  }
   const configPath = join(controlRoot, 'state.json');
   let saved;
   try {
