@@ -20,6 +20,7 @@ import { delimiter, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pipeline } from 'node:stream/promises';
 import { guestConfiguration, protectGuest, protectNetworks } from './guest-config.mjs';
+import { assertComputerDirectoryReady, computerStoragePath } from './computer-storage.mjs';
 import {
   assetHash,
   findRuntimeAssets,
@@ -236,6 +237,13 @@ async function prepare(options, onComputerStart) {
   const resourcesPath = resolve(options.resourcesPath || options.resources);
   const onStatus = options.onStatus || options.onProgress || (() => {});
   const signal = options.signal;
+  if (options.computerDirectory) {
+    await assertComputerDirectoryReady(options.computerDirectory, {
+      dataRoot,
+      platform: process.platform,
+      flatpak: Boolean(process.env.FLATPAK_ID),
+    });
+  }
   await mkdir(dataRoot, { recursive: true, mode: 0o700 });
   const controlRoot = join(dataRoot, 'desktop-runtime');
   await mkdir(controlRoot, { recursive: true, mode: 0o700 });
@@ -280,8 +288,7 @@ async function prepare(options, onComputerStart) {
     )
       throw new Error('The Nod computer manifest is invalid.');
   }
-  const identity = createHash('sha256').update(dataRoot).digest('hex').slice(0, 12);
-  const limaHome = join(homedir(), '.nod-desktop', identity);
+  const limaHome = computerStoragePath(dataRoot, options.computerDirectory);
   await mkdir(limaHome, { recursive: true, mode: 0o700 });
   await chmod(limaHome, 0o700);
   const lima = join(assets, 'lima/bin/limactl');
@@ -1087,24 +1094,26 @@ export async function stopRuntime(options) {
   storageReady.delete(resolve(options.dataRoot || options.root));
 }
 
-export async function removeProfile(options) {
+export async function removeComputer(options) {
   const dataRoot = resolve(options.dataRoot || options.root);
+  const limaHome = computerStoragePath(dataRoot, options.computerDirectory);
   if (process.platform === 'win32') {
     const { removeWindowsComputer } = await import('./windows.mjs');
-    await removeWindowsComputer(dataRoot);
-    return rm(dataRoot, { recursive: true, force: true });
+    await removeWindowsComputer(dataRoot, options.computerDirectory);
+    return;
   }
-  await rm(dataRoot, { recursive: true, force: true });
-  const homes = join(homedir(), '.nod-desktop');
-  const limaHome = join(homes, createHash('sha256').update(dataRoot).digest('hex').slice(0, 12));
-  const assets = await findRuntimeAssets({
-    resourcesPath: resolve(options.resourcesPath || options.resources),
-  });
   const exists = await access(join(limaHome, 'nod/lima.yaml')).then(
     () => true,
-    () => false,
+    (error) => {
+      if (error.code === 'ENOENT') return false;
+      throw error;
+    },
   );
-  if (assets && exists)
+  if (exists) {
+    const assets = await findRuntimeAssets({
+      resourcesPath: resolve(options.resourcesPath || options.resources),
+    });
+    if (!assets) throw new Error('Nod could not find its local computer runtime to remove the private computer safely.');
     await execute(join(assets, 'lima/bin/limactl'), ['delete', '--force', 'nod'], {
       env: {
         PATH: [join(assets, 'lima/bin'), '/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(delimiter),
@@ -1113,8 +1122,19 @@ export async function removeProfile(options) {
       },
       timeout: 120_000,
     });
+  }
   await rm(limaHome, { recursive: true, force: true });
-  await rmdir(homes).catch(() => {});
+  if (options.computerDirectory) {
+    await rmdir(join(options.computerDirectory, '.nod-desktop')).catch(() => {});
+  } else {
+    await rmdir(join(homedir(), '.nod-desktop')).catch(() => {});
+  }
+}
+
+export async function removeProfile(options) {
+  const dataRoot = resolve(options.dataRoot || options.root);
+  await removeComputer(options);
+  await rm(dataRoot, { recursive: true, force: true });
 }
 
 async function stopComputer(options) {
@@ -1124,8 +1144,7 @@ async function stopComputer(options) {
   }
   const dataRoot = resolve(options.dataRoot || options.root);
   const resourcesPath = resolve(options.resourcesPath || options.resources);
-  const identity = createHash('sha256').update(dataRoot).digest('hex').slice(0, 12);
-  const expected = join(homedir(), '.nod-desktop', identity);
+  const expected = computerStoragePath(dataRoot, options.computerDirectory);
   try {
     const exists = await access(join(expected, 'nod/lima.yaml')).then(
       () => true,
