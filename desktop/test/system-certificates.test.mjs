@@ -66,6 +66,7 @@ test('host CA selection does not affect non-Flatpak installations', () => {
 });
 
 test('trustSystemCertificates uses injected environment and file reader', () => {
+  const originalSslCertFile = process.env.SSL_CERT_FILE;
   const env = { FLATPAK_ID: 'io.n8n.Nod' };
   const reads = [];
   const calls = [];
@@ -86,5 +87,5 @@ test('trustSystemCertificates uses injected environment and file reader', () => 
   assert.equal(env.SSL_CERT_FILE, paths[0]);
   assert.deepEqual(reads, [paths[0]]);
   assert.deepEqual(calls, [['get', 'system']]);
-  assert.equal(process.env.SSL_CERT_FILE, undefined);
+  assert.equal(process.env.SSL_CERT_FILE, originalSslCertFile);
 });
