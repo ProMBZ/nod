@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -276,10 +276,23 @@ test(
     const runtime = join(profile, 'desktop-runtime');
     const ownComputer = computerStoragePath(profile, directory);
     const otherComputer = computerStoragePath(otherProfile, directory);
+    const runtimeAssets = join(root, 'runtime-assets');
+    const lima = join(runtimeAssets, 'lima/bin/limactl');
+    const commandLog = join(root, 'limactl.log');
     await mkdir(runtime, { recursive: true });
     await mkdir(ownComputer, { recursive: true });
     await mkdir(otherComputer, { recursive: true });
+    await mkdir(join(ownComputer, 'nod'), { recursive: true });
     await mkdir(directory, { recursive: true });
+    await mkdir(join(runtimeAssets, 'lima/bin'), { recursive: true });
+    await writeFile(join(runtimeAssets, 'manifest.json'), '{}');
+    await writeFile(join(ownComputer, 'nod/lima.yaml'), 'synthetic Lima config');
+    const quote = (value) => `'${value.replaceAll("'", "'\\\\''")}'`;
+    await writeFile(
+      lima,
+      `#!/bin/sh\ntest -d "$LIMA_HOME" || exit 23\nprintf '%s\\\\n' "$*" >> ${quote(commandLog)}\n`,
+    );
+    await chmod(lima, 0o700);
     await writeFile(join(runtime, 'state.json'), JSON.stringify({ limaHome: ownComputer }));
     await writeFile(
       join(profile, 'settings.json'),
@@ -294,6 +307,7 @@ test(
       computerDirectory: directory,
     });
 
+    assert.equal(await readFile(commandLog, 'utf8'), 'delete --force nod\\n');
     await assert.rejects(readFile(join(runtime, 'state.json')));
     assert.equal(
       await readFile(join(profile, 'settings.json'), 'utf8'),
