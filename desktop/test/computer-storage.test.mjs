@@ -141,7 +141,7 @@ test('a symbolic-link selection is resolved to its real folder before use', asyn
   );
 });
 
-test('default computer storage rejects a symlinked namespace before removal', async (t) => {
+test('default computer storage rejects a symlinked namespace before startup and removal', async (t) => {
   const root = await temporary(t);
   const dataRoot = join(root, 'profile');
   const home = join(root, 'home');
