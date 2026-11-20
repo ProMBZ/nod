@@ -386,6 +386,28 @@ async function local(programPrefix = '') {
     close: () => rm(directory, { recursive: true, force: true }),
   };
 }
+test('workspace command rejects null bytes before launching its supervisor', async () => {
+  const f = await local();
+  let launches = 0;
+  try {
+    await assert.rejects(
+      f.run(['fixture', 'bad\u0000argument'], {
+        spawn: () => {
+          launches++;
+          throw new Error('The supervisor should not be launched.');
+        },
+      }),
+      (error: unknown) =>
+        error instanceof WorkspaceCommandError &&
+        !error.uncertain &&
+        /null bytes/.test(error.message),
+    );
+    assert.equal(launches, 0);
+  } finally {
+    await f.close();
+  }
+});
+
 async function exists(path: string) {
   try {
     await readFile(path);
