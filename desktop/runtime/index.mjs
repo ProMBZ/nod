@@ -1110,6 +1110,7 @@ export async function removeComputer(options) {
   if (process.platform === 'win32') {
     const { removeWindowsComputer } = await import('./windows.mjs');
     await removeWindowsComputer(dataRoot, options.computerDirectory);
+    await rm(join(dataRoot, 'desktop-runtime/state.json'), { force: true });
     return;
   }
   const exists = await access(join(limaHome, 'nod/lima.yaml')).then(
@@ -1134,6 +1135,7 @@ export async function removeComputer(options) {
     });
   }
   await rm(limaHome, { recursive: true, force: true });
+  await rm(join(dataRoot, 'desktop-runtime/state.json'), { force: true });
   if (options.computerDirectory) {
     await rmdir(join(options.computerDirectory, '.nod-desktop')).catch(() => {});
   } else {
