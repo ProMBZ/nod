@@ -38,19 +38,28 @@ test('host certificate discovery returns undefined when no bundle is usable', ()
 
 test('Flatpak host CA selection sets SSL_CERT_FILE without replacing an override', () => {
   const env = { FLATPAK_ID: 'io.n8n.Nod' };
-  assert.equal(configureHostCertificateBundle(env, (path) => {
-    if (path === paths[0]) return '-----BEGIN CERTIFICATE-----\nsynthetic';
-    throw new Error('Unexpected path');
-  }), paths[0]);
+  assert.equal(
+    configureHostCertificateBundle(env, (path) => {
+      if (path === paths[0]) return '-----BEGIN CERTIFICATE-----\nsynthetic';
+      throw new Error('Unexpected path');
+    }),
+    paths[0],
+  );
   assert.equal(env.SSL_CERT_FILE, paths[0]);
 
   const existing = { FLATPAK_ID: 'io.n8n.Nod', SSL_CERT_FILE: '/custom/ca.pem' };
-  assert.equal(configureHostCertificateBundle(existing, () => assert.fail('Must preserve override')), undefined);
+  assert.equal(
+    configureHostCertificateBundle(existing, () => assert.fail('Must preserve override')),
+    undefined,
+  );
   assert.equal(existing.SSL_CERT_FILE, '/custom/ca.pem');
 });
 
 test('host CA selection does not affect non-Flatpak installations', () => {
   const env = { FLATPAK_ID: 'another.app' };
-  assert.equal(configureHostCertificateBundle(env, () => assert.fail('Must not inspect host')), undefined);
+  assert.equal(
+    configureHostCertificateBundle(env, () => assert.fail('Must not inspect host')),
+    undefined,
+  );
   assert.equal(env.SSL_CERT_FILE, undefined);
 });
