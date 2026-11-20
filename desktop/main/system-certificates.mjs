@@ -17,11 +17,15 @@ export function hostCertificateBundle(read = readFileSync) {
   }
 }
 
+export function configureHostCertificateBundle(env = process.env, read = readFileSync) {
+  if (env.FLATPAK_ID !== 'io.n8n.Nod' || env.SSL_CERT_FILE) return;
+  const bundle = hostCertificateBundle(read);
+  if (bundle) env.SSL_CERT_FILE = bundle;
+  return bundle;
+}
+
 export function trustSystemCertificates(tls = { getCACertificates, setDefaultCACertificates }) {
-  if (process.env.FLATPAK_ID === 'io.n8n.Nod' && !process.env.SSL_CERT_FILE) {
-    const bundle = hostCertificateBundle();
-    if (bundle) process.env.SSL_CERT_FILE = bundle;
-  }
+  configureHostCertificateBundle();
 
   const now = Date.now();
   const system = tls.getCACertificates('system').filter((cert) => {
