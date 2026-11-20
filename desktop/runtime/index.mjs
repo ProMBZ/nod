@@ -574,17 +574,25 @@ function validImage(item) {
   return item;
 }
 
-export async function preloadRuntimeImages({ dataRoot, assets, signal }) {
+export async function preloadRuntimeImages({
+  dataRoot,
+  assets,
+  signal,
+  computerDirectory,
+  executeImpl = execute,
+  platform = process.platform,
+  home = homedir(),
+}) {
   const root = resolve(dataRoot);
-  const identity = createHash('sha256').update(root).digest('hex').slice(0, 12);
+  const limaHome = computerStoragePath(root, computerDirectory, { platform, home });
   const env = {
     PATH: ['/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(delimiter),
-    HOME: homedir(),
-    DOCKER_HOST: `unix://${join(homedir(), '.nod-desktop', identity, 'nod/sock/docker.sock')}`,
+    HOME: home,
+    DOCKER_HOST: `unix://${join(limaHome, 'nod/sock/docker.sock')}`,
     DOCKER_CONFIG: join(root, 'desktop-runtime/docker-config'),
   };
   const runDocker = (args, extra = {}) =>
-    execute(join(assets, 'docker-host/docker/docker'), args, { env, signal, ...extra });
+    executeImpl(join(assets, 'docker-host/docker/docker'), args, { env, signal, ...extra });
   const manifest = JSON.parse(await readFile(join(assets, 'manifest.json'), 'utf8'));
   const loaded = [];
   for (const item of manifest.images.map(validImage)) {
@@ -1119,8 +1127,8 @@ export async function removeComputer(options) {
     if (selected !== resolve(options.computerDirectory)) {
       throw new Error('The private-computer storage folder changed after it was selected. Choose it again in Settings.');
     }
-    await assertComputerStoragePathSafe(dataRoot, options.computerDirectory);
   }
+  await assertComputerStoragePathSafe(dataRoot, options.computerDirectory);
   if (process.platform === 'win32') {
     const { removeWindowsComputer } = await import('./windows.mjs');
     await removeWindowsComputer(dataRoot, options.computerDirectory);
