@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import { createSettingsStore } from '../main/settings.mjs';
 
+import { removeComputer } from '../runtime/index.mjs';
 import {
   computerIdentity,
   computerStoragePath,
@@ -147,4 +148,35 @@ test('desktop settings persist and validate the selected private-computer folder
 
   await store.save({ computerDirectory: null });
   assert.equal((await store.get()).computerDirectory, undefined);
+});
+
+test('removing a custom private computer clears its runtime identity but keeps app data and other profiles', async (t) => {
+  const root = await temporary(t);
+  const profile = join(root, 'profile');
+  const directory = join(root, 'external');
+  const otherProfile = join(root, 'other-profile');
+  const runtime = join(profile, 'desktop-runtime');
+  const ownComputer = computerStoragePath(profile, directory);
+  const otherComputer = computerStoragePath(otherProfile, directory);
+  await mkdir(runtime, { recursive: true });
+  await mkdir(ownComputer, { recursive: true });
+  await mkdir(otherComputer, { recursive: true });
+  await mkdir(directory, { recursive: true });
+  await writeFile(join(runtime, 'state.json'), JSON.stringify({ limaHome: ownComputer }));
+  await writeFile(join(profile, 'settings.json'), JSON.stringify({ computerDirectory: directory }));
+  await writeFile(join(ownComputer, 'synthetic-disk'), 'old computer');
+  await writeFile(join(otherComputer, 'synthetic-disk'), 'other profile');
+
+  await removeComputer({
+    dataRoot: profile,
+    resourcesPath: root,
+    computerDirectory: directory,
+  });
+
+  await assert.rejects(readFile(join(runtime, 'state.json')));
+  assert.equal(await readFile(join(profile, 'settings.json'), 'utf8'), JSON.stringify({ computerDirectory: directory }));
+  assert.equal(await readFile(join(otherComputer, 'synthetic-disk'), 'utf8'), 'other profile');
+  assert.equal(await readFile(join(directory, '.nod-desktop', computerIdentity(otherProfile), 'wsl', 'synthetic-disk'), 'utf8'), 'other profile');
+  await assert.rejects(readFile(join(ownComputer, 'synthetic-disk')));
+  assert.equal(await readFile(join(profile, 'settings.json'), 'utf8'), JSON.stringify({ computerDirectory: directory }));
 });
