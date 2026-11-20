@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -6,7 +7,7 @@ import test from 'node:test';
 
 import { createSettingsStore } from '../main/settings.mjs';
 
-import { removeComputer } from '../runtime/index.mjs';
+import { preloadRuntimeImages, removeComputer } from '../runtime/index.mjs';
 import {
   computerIdentity,
   assertComputerStoragePathSafe,
@@ -140,6 +141,22 @@ test('a symbolic-link selection is resolved to its real folder before use', asyn
   );
 });
 
+test('default computer storage rejects a symlinked namespace before removal', async (t) => {
+  const root = await temporary(t);
+  const dataRoot = join(root, 'profile');
+  const home = join(root, 'home');
+  const outside = join(root, 'outside');
+  await mkdir(dataRoot);
+  await mkdir(home);
+  await mkdir(outside);
+  await symlink(outside, join(home, '.nod-desktop'));
+
+  await assert.rejects(
+    assertComputerStoragePathSafe(dataRoot, undefined, { platform: 'linux', home }),
+    /not a normal directory/,
+  );
+});
+
 test('custom computer namespaces reject symbolic links before Lima or WSL can follow them', async (t) => {
   const root = await temporary(t);
   const dataRoot = join(root, 'profile');
@@ -179,6 +196,55 @@ test('custom computer namespaces reject symbolic links before Lima or WSL can fo
   );
 });
 
+test('runtime image preloading uses the selected private-computer Docker socket', async (t) => {
+  const root = await temporary(t);
+  const dataRoot = join(root, 'profile');
+  const home = join(root, 'home');
+  const directory = join(root, 'selected');
+  const assets = join(root, 'assets');
+  const imagePath = join(assets, 'images/workspace.tar.zst');
+  const image = Buffer.from('Nod runtime image fixture');
+  const digest = createHash('sha256').update(image).digest('hex');
+  await mkdir(join(assets, 'images'), { recursive: true });
+  await writeFile(imagePath, image);
+  await writeFile(
+    join(assets, 'manifest.json'),
+    JSON.stringify({
+      images: [
+        {
+          name: 'workspace',
+          id: `sha256:${'a'.repeat(64)}`,
+          file: 'images/workspace.tar.zst',
+          sha256: digest,
+          reference: 'nod/workspace:test',
+        },
+      ],
+    }),
+  );
+
+  const calls = [];
+  await preloadRuntimeImages({
+    dataRoot,
+    assets,
+    computerDirectory: directory,
+    platform: 'linux',
+    home,
+    executeImpl: async (_command, args, { env }) => {
+      calls.push({ args, env });
+      return '';
+    },
+  });
+
+  assert.equal(calls.length, 2);
+  assert.equal(
+    calls[0].env.DOCKER_HOST,
+    `unix://${join(
+      computerStoragePath(dataRoot, directory, { platform: 'linux', home }),
+      'nod/sock/docker.sock',
+    )}`,
+  );
+});
+
 test('desktop settings persist and validate the selected private-computer folder', async (t) => {
   const root = await temporary(t);
   const directory = join(root, 'external');
@@ -191,7 +257,7 @@ test('desktop settings persist and validate the selected private-computer folder
 
   await assert.rejects(store.save({ computerDirectory: 'relative/folder' }), /valid private-computer storage folder/);
   await assert.rejects(
-    store.save({ computerDirectory: join(root, 'external', '..', 'external') }),
+    store.save({ computerDirectory: `${directory}/../external` }),
     /valid private-computer storage folder/,
   );
 
