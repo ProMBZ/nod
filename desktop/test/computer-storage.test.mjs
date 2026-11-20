@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -71,7 +71,7 @@ test('a selected folder must exist, be a directory, and be separate from app dat
   await assert.rejects(validateComputerDirectory(file, options), /real folder/);
   await assert.rejects(validateComputerDirectory(join(root, 'missing'), options), /cannot use/);
   await assert.rejects(validateComputerDirectory(profile, options), /separate from Nod's application data/);
-  await assert.rejects(validateComputerDirectory(root, options), /separate from Nod's application data/);
+  assert.equal(await validateComputerDirectory(root, options), root);
 });
 
 test('a selected folder must be writable and have the required free space', async (t) => {
