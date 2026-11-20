@@ -20,7 +20,12 @@ import { pipeline } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 import { assetHash, resumableDownload, timeLeft } from './assets.mjs';
 import { execute, finishRuntime } from './index.mjs';
-import { assertComputerDirectoryReady, computerIdentity, computerStoragePath } from './computer-storage.mjs';
+import {
+  assertComputerDirectoryReady,
+  assertComputerStoragePathSafe,
+  computerIdentity,
+  computerStoragePath,
+} from './computer-storage.mjs';
 
 const holders = new Map();
 const distributionName = (root) =>
@@ -241,11 +246,15 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
   const resourcesPath = resolve(options.resourcesPath || options.resources);
   const signal = options.signal;
   if (options.computerDirectory) {
-    await assertComputerDirectoryReady(options.computerDirectory, {
+    const selected = await assertComputerDirectoryReady(options.computerDirectory, {
       dataRoot,
       platform: process.platform,
       minimumFreeBytes: 0,
     });
+    if (selected !== resolve(options.computerDirectory)) {
+      throw new Error('The private-computer storage folder changed after it was selected. Choose it again in Settings.');
+    }
+    await assertComputerStoragePathSafe(dataRoot, options.computerDirectory);
   }
   const onStatus = options.onStatus || options.onProgress || (() => {});
   const status = (value) => onStatus({ stage: 'computer', ...value });
