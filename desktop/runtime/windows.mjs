@@ -244,6 +244,7 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
     await assertComputerDirectoryReady(options.computerDirectory, {
       dataRoot,
       platform: process.platform,
+      minimumFreeBytes: 0,
     });
   }
   const onStatus = options.onStatus || options.onProgress || (() => {});
