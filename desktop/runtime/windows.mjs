@@ -254,8 +254,8 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
     if (selected !== resolve(options.computerDirectory)) {
       throw new Error('The private-computer storage folder changed after it was selected. Choose it again in Settings.');
     }
-    await assertComputerStoragePathSafe(dataRoot, options.computerDirectory);
   }
+  await assertComputerStoragePathSafe(dataRoot, options.computerDirectory);
   const onStatus = options.onStatus || options.onProgress || (() => {});
   const status = (value) => onStatus({ stage: 'computer', ...value });
   const hostEnvironment = windowsEnvironment();
