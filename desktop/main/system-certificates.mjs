@@ -26,8 +26,12 @@ export function configureHostCertificateBundle(env = process.env, read = readFil
   return bundle;
 }
 
-export function trustSystemCertificates(tls = { getCACertificates, setDefaultCACertificates }) {
-  configureHostCertificateBundle();
+export function trustSystemCertificates(
+  tls = { getCACertificates, setDefaultCACertificates },
+  env = process.env,
+  read = readFileSync,
+) {
+  configureHostCertificateBundle(env, read);
 
   const now = Date.now();
   const system = tls.getCACertificates('system').filter((cert) => {
