@@ -18,6 +18,11 @@ export function hostCertificateBundle(read = readFileSync) {
 }
 
 export function trustSystemCertificates(tls = { getCACertificates, setDefaultCACertificates }) {
+  if (process.env.FLATPAK_ID === 'io.n8n.Nod' && !process.env.SSL_CERT_FILE) {
+    const bundle = hostCertificateBundle();
+    if (bundle) process.env.SSL_CERT_FILE = bundle;
+  }
+
   const now = Date.now();
   const system = tls.getCACertificates('system').filter((cert) => {
     try {
