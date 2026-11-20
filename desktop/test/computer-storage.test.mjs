@@ -9,6 +9,7 @@ import { createSettingsStore } from '../main/settings.mjs';
 import { removeComputer } from '../runtime/index.mjs';
 import {
   computerIdentity,
+  assertComputerStoragePathSafe,
   computerStoragePath,
   validateComputerDirectory,
 } from '../runtime/computer-storage.mjs';
@@ -127,6 +128,38 @@ test('a symbolic-link selection is resolved to its real folder before use', asyn
   assert.equal(
     await validateComputerDirectory(link, { minimumFreeBytes: 0 }),
     directory,
+  );
+});
+
+test('custom computer namespaces reject symbolic links before Lima or WSL can follow them', async (t) => {
+  const root = await temporary(t);
+  const dataRoot = join(root, 'profile');
+  const directory = join(root, 'external');
+  const outside = join(root, 'outside');
+  await mkdir(dataRoot);
+  await mkdir(directory);
+  await mkdir(outside);
+
+  await symlink(outside, join(directory, '.nod-desktop'));
+  await assert.rejects(
+    assertComputerStoragePathSafe(dataRoot, directory),
+    /not a normal directory/,
+  );
+
+  await rm(join(directory, '.nod-desktop'), { force: true });
+  await mkdir(join(directory, '.nod-desktop'));
+  await symlink(outside, join(directory, '.nod-desktop', computerIdentity(dataRoot)));
+  await assert.rejects(
+    assertComputerStoragePathSafe(dataRoot, directory),
+    /not a normal directory/,
+  );
+
+  await rm(join(directory, '.nod-desktop', computerIdentity(dataRoot)), { force: true });
+  await mkdir(join(directory, '.nod-desktop', computerIdentity(dataRoot)));
+  await symlink(outside, join(directory, '.nod-desktop', computerIdentity(dataRoot), 'wsl'));
+  await assert.rejects(
+    assertComputerStoragePathSafe(dataRoot, directory, { platform: 'win32' }),
+    /not a normal directory/,
   );
 });
 
