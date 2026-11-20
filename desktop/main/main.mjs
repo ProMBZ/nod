@@ -61,6 +61,7 @@ import { appOpenPath } from './app-links.mjs';
 import { trustSystemCertificates } from './system-certificates.mjs';
 import { opensAtLogin, setOpenAtLogin } from './login-item.mjs';
 import { createStartupFeedbackClient } from './feedback-client.mjs';
+import { computerStoragePath, validateComputerDirectory } from '../runtime/computer-storage.mjs';
 
 trustSystemCertificates();
 
@@ -317,6 +318,7 @@ const lifecycle = createDesktopLifecycle({
       );
       const prepared = await prepareRuntime({
         dataRoot: profileRoot,
+        computerDirectory: (await settings.get()).computerDirectory,
         resourcesPath: engineRoot,
         preserveRuntimeCache: testInstall,
         resolveDownloadUrl: updateSource?.runtimeDownloadUrl,
@@ -2686,6 +2688,7 @@ async function quit(complete, failure = 'Nod could not finish shutting down.', u
 async function removeAllData() {
   if (quitting) return;
   if (remoteConnection) return replayOnboarding();
+  const computerDirectory = (await settings.get()).computerDirectory;
   const { response } = await dialog.showMessageBox({
     type: 'warning',
     message: 'Remove all data and start over?',
@@ -2705,7 +2708,7 @@ async function removeAllData() {
     const browser = session.fromPartition('persist:nod-app');
     await browser.clearStorageData();
     await browser.clearCache();
-    await removeProfile({ dataRoot: profileRoot, resourcesPath: engineRoot });
+    await removeProfile({ dataRoot: profileRoot, resourcesPath: engineRoot, computerDirectory });
     app.relaunch();
     app.exit();
   }, 'Nod could not remove all its data.');
@@ -3336,6 +3339,57 @@ else {
         if ((!updates?.ready && !checkingUpdates) || quitting)
           throw new Error('No desktop update is ready.');
         await checkForUpdates(true, true, true);
+      });
+      ipcMain.handle('nod:computer:directory:choose', async (event) => {
+        if (!isEngine(event) || remoteConnection) throw new Error('Local computer settings are unavailable.');
+        if (quitting) throw new Error('Nod is closing.');
+        if (lifecycle.busy) throw new Error('Wait for the private computer to finish its current task.');
+
+        const current = await settings.get();
+        const parent = BrowserWindow.fromWebContents(event.sender);
+        const selection = await dialog.showOpenDialog(parent, {
+          title: 'Choose private-computer storage folder',
+          buttonLabel: 'Use this folder',
+          defaultPath: current.computerDirectory || homedir(),
+          properties: ['openDirectory', 'createDirectory'],
+        });
+        if (selection.canceled || !selection.filePaths[0]) return current.computerDirectory ?? null;
+
+        const directory = await validateComputerDirectory(selection.filePaths[0], {
+          dataRoot: profileRoot,
+          platform: process.platform,
+          flatpak: process.platform === 'linux' && Boolean(process.env.FLATPAK_ID),
+        });
+        const previousPath = computerStoragePath(profileRoot, current.computerDirectory);
+        const nextPath = computerStoragePath(profileRoot, directory);
+        if (previousPath === nextPath) return current.computerDirectory ?? null;
+
+        const { response } = await dialog.showMessageBox(parent, {
+          type: 'warning',
+          message: 'Recreate your private computer in this folder?',
+          detail:
+            'This is not a move. Nod will permanently delete the existing private computer and create a new one in the selected folder. Files, installed tools and local databases stored only inside that computer will be lost. Your Nod conversations, memories, saved connections and app settings will be kept. Nothing changes if you cancel.',
+          buttons: ['Recreate private computer', 'Cancel'],
+          defaultId: 1,
+          cancelId: 1,
+          noLink: true,
+        });
+        if (response !== 0 || quitting) return current.computerDirectory ?? null;
+
+        await quit(async () => {
+          const { removeComputer } = await import(
+            pathToFileURL(join(engineRoot, 'desktop', 'runtime', 'index.mjs')).href
+          );
+          await removeComputer({
+            dataRoot: profileRoot,
+            resourcesPath: engineRoot,
+            computerDirectory: current.computerDirectory,
+          });
+          await settings.save({ computerDirectory: directory });
+          app.relaunch();
+          app.exit();
+        }, 'Nod could not change the private-computer storage folder.');
+        return directory;
       });
       ipcMain.handle('nod:settings:get', (event) => {
         if (!isSetup(event) && !isEngine(event)) throw new Error('This action is unavailable.');
