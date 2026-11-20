@@ -187,31 +187,37 @@ test(
   'removing a custom private computer clears its runtime identity but keeps app data and other profiles',
   { skip: process.platform === 'win32' },
   async (t) => {
-  const root = await temporary(t);
-  const profile = join(root, 'profile');
-  const directory = join(root, 'external');
-  const otherProfile = join(root, 'other-profile');
-  const runtime = join(profile, 'desktop-runtime');
-  const ownComputer = computerStoragePath(profile, directory);
-  const otherComputer = computerStoragePath(otherProfile, directory);
-  await mkdir(runtime, { recursive: true });
-  await mkdir(ownComputer, { recursive: true });
-  await mkdir(otherComputer, { recursive: true });
-  await mkdir(directory, { recursive: true });
-  await writeFile(join(runtime, 'state.json'), JSON.stringify({ limaHome: ownComputer }));
-  await writeFile(join(profile, 'settings.json'), JSON.stringify({ computerDirectory: directory }));
-  await writeFile(join(ownComputer, 'synthetic-disk'), 'old computer');
-  await writeFile(join(otherComputer, 'synthetic-disk'), 'other profile');
+    const root = await temporary(t);
+    const profile = join(root, 'profile');
+    const directory = join(root, 'external');
+    const otherProfile = join(root, 'other-profile');
+    const runtime = join(profile, 'desktop-runtime');
+    const ownComputer = computerStoragePath(profile, directory);
+    const otherComputer = computerStoragePath(otherProfile, directory);
+    await mkdir(runtime, { recursive: true });
+    await mkdir(ownComputer, { recursive: true });
+    await mkdir(otherComputer, { recursive: true });
+    await mkdir(directory, { recursive: true });
+    await writeFile(join(runtime, 'state.json'), JSON.stringify({ limaHome: ownComputer }));
+    await writeFile(
+      join(profile, 'settings.json'),
+      JSON.stringify({ computerDirectory: directory }),
+    );
+    await writeFile(join(ownComputer, 'synthetic-disk'), 'old computer');
+    await writeFile(join(otherComputer, 'synthetic-disk'), 'other profile');
 
-  await removeComputer({
-    dataRoot: profile,
-    resourcesPath: root,
-    computerDirectory: directory,
-  });
+    await removeComputer({
+      dataRoot: profile,
+      resourcesPath: root,
+      computerDirectory: directory,
+    });
 
-  await assert.rejects(readFile(join(runtime, 'state.json')));
-  assert.equal(await readFile(join(profile, 'settings.json'), 'utf8'), JSON.stringify({ computerDirectory: directory }));
-  assert.equal(await readFile(join(otherComputer, 'synthetic-disk'), 'utf8'), 'other profile');
-  await assert.rejects(readFile(join(ownComputer, 'synthetic-disk')));
+    await assert.rejects(readFile(join(runtime, 'state.json')));
+    assert.equal(
+      await readFile(join(profile, 'settings.json'), 'utf8'),
+      JSON.stringify({ computerDirectory: directory }),
+    );
+    assert.equal(await readFile(join(otherComputer, 'synthetic-disk'), 'utf8'), 'other profile');
+    await assert.rejects(readFile(join(ownComputer, 'synthetic-disk')));
   },
 );
