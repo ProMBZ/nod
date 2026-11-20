@@ -1394,6 +1394,7 @@ function baseEnvironment() {
       'LANG',
       'LC_ALL',
       'PATH',
+      'SSL_CERT_FILE',
       'SHELL',
       'SYSTEMROOT',
       'USERPROFILE',
