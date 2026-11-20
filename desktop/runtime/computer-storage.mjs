@@ -81,7 +81,7 @@ export async function validateComputerDirectory(
 
   if (dataRoot) {
     const profile = resolve(dataRoot);
-    if (isWithin(profile, directory) || isWithin(directory, profile)) {
+    if (isWithin(profile, directory)) {
       throw new Error(
         `Nod cannot use "${directory}": choose a folder separate from Nod's application data.`,
       );
@@ -103,9 +103,12 @@ export async function validateComputerDirectory(
   const probe = join(directory, `.nod-storage-check-${randomUUID()}.tmp`);
   try {
     const file = await open(probe, 'wx', 0o600);
-    await file.writeFile('Nod storage check');
-    await file.sync();
-    await file.close();
+    try {
+      await file.writeFile('Nod storage check');
+      await file.sync();
+    } finally {
+      await file.close();
+    }
   } catch (error) {
     await rm(probe, { force: true }).catch(() => {});
     throw new Error(`Nod cannot create files in "${directory}": ${error.message}`);
