@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { copyBundleSource } from './engine-dependencies.mjs';
 import { run } from './release-tools.mjs';
 
