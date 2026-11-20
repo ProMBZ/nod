@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { chmod, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { access, chmod, mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -369,8 +369,8 @@ test('Windows cleanup removes the selected folder when WSL listing fails', async
   });
 
   assert.equal(unregisterCalls, 0);
-  await assert.rejects(readFile(join(computerPath, 'disk.vhdx')));
-  await assert.rejects(readFile(profileStorage));
+  await assert.rejects(access(computerPath), { code: 'ENOENT' });
+  await assert.rejects(access(profileStorage), { code: 'ENOENT' });
 });
 
 test('runtime image preloading rejects a symlinked custom namespace before contacting Docker', async (t) => {
