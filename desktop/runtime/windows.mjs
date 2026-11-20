@@ -9,6 +9,7 @@ import {
   readFile,
   rename,
   rm,
+  rmdir,
   stat,
   statfs,
   writeFile,
@@ -566,15 +567,13 @@ export async function removeWindowsComputer(dataRoot, computerDirectory) {
   const computerPath = computerStoragePath(dataRoot, computerDirectory);
   const env = windowsEnvironment();
   const wsl = join(env.SYSTEMROOT, 'System32/wsl.exe');
-  if ((await distributions(wsl, env).catch(() => [])).includes(distribution))
+  const available = await distributions(wsl, env);
+  if (available.includes(distribution))
     await execute(wsl, ['--unregister', distribution], { env, timeout: 300_000 });
   await rm(computerPath, { recursive: true, force: true });
   if (computerDirectory) {
-    await rm(join(computerDirectory, '.nod-desktop', computerIdentity(dataRoot)), {
-      recursive: true,
-      force: true,
-    });
-    const { rmdir } = await import('node:fs/promises');
+    const profileStorage = join(computerDirectory, '.nod-desktop', computerIdentity(dataRoot));
+    await rm(profileStorage, { recursive: true, force: true });
     await rmdir(join(computerDirectory, '.nod-desktop')).catch(() => {});
   }
 }
