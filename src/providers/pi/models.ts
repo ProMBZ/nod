@@ -156,6 +156,7 @@ function ollamaModel(show: z.infer<typeof ollamaShowSchema>) {
   const values = show.thinking?.values;
   const named = levels.filter((level) => values?.includes(level));
   const supportsReasoningEffort = Boolean(
+    show.capabilities?.includes('thinking') !== false &&
     values?.includes(false) &&
     values.includes(true) &&
     values.every((value) => typeof value === 'boolean'),
