@@ -481,6 +481,7 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
   await mkdir(dockerEnvironment.DOCKER_CONFIG, { recursive: true });
   return finishRuntime({
     dataRoot,
+    computerDirectory: options.computerDirectory,
     resourcesPath,
     assets,
     manifest,
@@ -518,7 +519,14 @@ export async function stopWindowsRuntime(options) {
   const wsl = join(env.SYSTEMROOT, 'System32/wsl.exe');
   try {
     const saved = JSON.parse(await readFile(join(dataRoot, 'desktop-runtime/state.json'), 'utf8'));
-    if (saved.version !== 1 || saved.distribution !== distribution) throw new Error();
+    const expectedComputerPath = computerStoragePath(dataRoot, options.computerDirectory);
+    if (
+      saved.version !== 1 ||
+      saved.distribution !== distribution ||
+      (saved.computerPath !== undefined && saved.computerPath !== expectedComputerPath) ||
+      (options.computerDirectory && saved.computerPath !== expectedComputerPath)
+    )
+      throw new Error();
     if ((await distributions(wsl, env)).includes(distribution)) {
       await execute(
         wsl,
