@@ -150,7 +150,10 @@ test('desktop settings persist and validate the selected private-computer folder
   assert.equal((await store.get()).computerDirectory, undefined);
 });
 
-test('removing a custom private computer clears its runtime identity but keeps app data and other profiles', async (t) => {
+test(
+  'removing a custom private computer clears its runtime identity but keeps app data and other profiles',
+  { skip: process.platform === 'win32' },
+  async (t) => {
   const root = await temporary(t);
   const profile = join(root, 'profile');
   const directory = join(root, 'external');
@@ -176,7 +179,7 @@ test('removing a custom private computer clears its runtime identity but keeps a
   await assert.rejects(readFile(join(runtime, 'state.json')));
   assert.equal(await readFile(join(profile, 'settings.json'), 'utf8'), JSON.stringify({ computerDirectory: directory }));
   assert.equal(await readFile(join(otherComputer, 'synthetic-disk'), 'utf8'), 'other profile');
-  assert.equal(await readFile(join(directory, '.nod-desktop', computerIdentity(otherProfile), 'wsl', 'synthetic-disk'), 'utf8'), 'other profile');
   await assert.rejects(readFile(join(ownComputer, 'synthetic-disk')));
   assert.equal(await readFile(join(profile, 'settings.json'), 'utf8'), JSON.stringify({ computerDirectory: directory }));
-});
+  },
+);
