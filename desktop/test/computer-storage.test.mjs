@@ -342,6 +342,11 @@ test('Windows cleanup removes the selected folder when WSL listing fails', async
   const dataRoot = join(root, 'profile');
   const computerDirectory = join(root, 'external');
   const computerPath = computerStoragePath(dataRoot, computerDirectory, { platform: 'win32' });
+  const profileStorage = join(
+    computerDirectory,
+    '.nod-desktop',
+    createHash('sha256').update(dataRoot.toLowerCase()).digest('hex').slice(0, 12),
+  );
   const distribution = `nod-${createHash('sha256').update(dataRoot.toLowerCase()).digest('hex').slice(0, 12)}`;
   await mkdir(join(dataRoot, 'desktop-runtime'), { recursive: true });
   await mkdir(computerPath, { recursive: true });
@@ -365,7 +370,7 @@ test('Windows cleanup removes the selected folder when WSL listing fails', async
 
   assert.equal(unregisterCalls, 0);
   await assert.rejects(readFile(join(computerPath, 'disk.vhdx')));
-  await assert.rejects(readFile(join(computerDirectory, '.nod-desktop', createHash('sha256').update(dataRoot.toLowerCase()).digest('hex').slice(0, 12), 'wsl')));
+  await assert.rejects(readFile(profileStorage));
 });
 
 test('runtime image preloading rejects a symlinked custom namespace before contacting Docker', async (t) => {
