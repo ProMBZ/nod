@@ -13,7 +13,7 @@ const certificatePaths = [
 function parseCertificateBundle(contents) {
   const value = String(contents);
   const blocks = [
-    ...value.matchAll(/-----BEGIN CERTIFICATE-----[\\s\\S]*?-----END CERTIFICATE-----/g),
+    ...value.matchAll(/-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g),
   ];
   const starts = value.match(/-----BEGIN CERTIFICATE-----/g) || [];
   const ends = value.match(/-----END CERTIFICATE-----/g) || [];
