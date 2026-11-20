@@ -113,11 +113,14 @@ test('trustSystemCertificates uses injected environment and file reader', () => 
 
   assert.equal(env.SSL_CERT_FILE, paths[0]);
   assert.deepEqual(reads, [paths[0]]);
-  assert.deepEqual(calls.map(([action, value]) => [action, typeof value === 'string' ? value : null]), [
-    ['get', 'system'],
-    ['get', 'default'],
-    ['set', null],
-  ]);
+  assert.deepEqual(
+    calls.map(([action, value]) => [action, typeof value === 'string' ? value : null]),
+    [
+      ['get', 'system'],
+      ['get', 'default'],
+      ['set', null],
+    ],
+  );
   assert.ok(
     calls[2][1].some((pem) => pem.includes('AC RAIZ FNMT-RCM SERVIDORES SEGUROS')),
   );
