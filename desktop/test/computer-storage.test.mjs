@@ -290,7 +290,7 @@ test(
     const quote = (value) => `'${value.replaceAll("'", "'\\\\''")}'`;
     await writeFile(
       lima,
-      `#!/bin/sh\ntest -d "$LIMA_HOME" || exit 23\nprintf '%s\\\\n' "$*" >> ${quote(commandLog)}\n`,
+      `#!/bin/sh\ntest -d "$LIMA_HOME" || exit 23\nprintf '%s\n' "$*" >> ${quote(commandLog)}\n`,
     );
     await chmod(lima, 0o700);
     await writeFile(join(runtime, 'state.json'), JSON.stringify({ limaHome: ownComputer }));
