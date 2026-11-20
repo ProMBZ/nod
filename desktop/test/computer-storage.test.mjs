@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
+import { createSettingsStore } from '../main/settings.mjs';
+
 import {
   computerIdentity,
   computerStoragePath,
@@ -125,4 +127,24 @@ test('a folder that is a symbolic link is rejected', async (t) => {
     validateComputerDirectory(link, { minimumFreeBytes: 0 }),
     /real folder/,
   );
+});
+
+test('desktop settings persist and validate the selected private-computer folder', async (t) => {
+  const root = await temporary(t);
+  const directory = join(root, 'external');
+  await mkdir(directory);
+  const store = createSettingsStore(join(root, 'settings.json'), {});
+
+  assert.equal((await store.get()).computerDirectory, undefined);
+  await store.save({ computerDirectory: directory });
+  assert.equal((await store.get()).computerDirectory, directory);
+
+  await assert.rejects(store.save({ computerDirectory: 'relative/folder' }), /valid private-computer storage folder/);
+  await assert.rejects(
+    store.save({ computerDirectory: join(root, 'external', '..', 'external') }),
+    /valid private-computer storage folder/,
+  );
+
+  await store.save({ computerDirectory: null });
+  assert.equal((await store.get()).computerDirectory, undefined);
 });
