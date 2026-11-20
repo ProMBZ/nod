@@ -607,7 +607,6 @@ export async function removeWindowsComputer(
     throw new Error('The Nod computer configuration needs recovery.');
   const env = getEnvironment();
   const wsl = join(env.SYSTEMROOT, 'System32/wsl.exe');
-  // A failed WSL listing must not strand the selected computer's files on disk.
   const available = await listDistributions(wsl, env).catch(() => []);
   if (available.includes(distribution))
     await executeCommand(wsl, ['--unregister', distribution], { env, timeout: 300_000 });
