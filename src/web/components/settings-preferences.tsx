@@ -423,8 +423,9 @@ export function GeneralPreferences({
             </div>
             <p className="field-hint">
               The selected drive needs at least 50 GB free. Changing it recreates your private
-              computer and deletes files stored inside it. Your conversations, memories and Nod
-              settings are kept.
+              computer and permanently deletes local assistant data, including conversations,
+              memories, browser profiles, workspace files and saved model and app connections.
+              Desktop app preferences remain.
             </p>
             {storageError && <Notice>{storageError}</Notice>}
           </section>
