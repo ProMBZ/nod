@@ -21,6 +21,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { pipeline } from 'node:stream/promises';
 import { guestConfiguration, protectGuest, protectNetworks } from './guest-config.mjs';
 import {
+  MINIMUM_COMPUTER_STORAGE_BYTES,
   assertComputerDirectoryReady,
   assertComputerStoragePathSafe,
   computerStoragePath,
@@ -246,7 +247,7 @@ async function prepare(options, onComputerStart) {
       dataRoot,
       platform: process.platform,
       flatpak: Boolean(process.env.FLATPAK_ID),
-      minimumFreeBytes: 0,
+      minimumFreeBytes: MINIMUM_COMPUTER_STORAGE_BYTES,
     });
     if (selected !== resolve(options.computerDirectory)) {
       throw new Error('The private-computer storage folder changed after it was selected. Choose it again in Settings.');
@@ -515,7 +516,10 @@ async function prepare(options, onComputerStart) {
     saved.initializing = false;
     await saveState();
   }
-  if (!options.preserveRuntimeCache) await removeUnmountedRuntimes(assets).catch(() => {});
+  if (!options.preserveRuntimeCache)
+    await removeUnmountedRuntimes(assets, { computerDirectory: options.computerDirectory }).catch(
+      () => {},
+    );
   await waitFor(() => runDocker(['info', '--format', '{{.ServerVersion}}']), { signal });
   const prepareImage = async (name) => {
     const item = validImage(manifest.images.find((image) => image.name === name));
@@ -584,6 +588,7 @@ export async function preloadRuntimeImages({
   home = homedir(),
 }) {
   const root = resolve(dataRoot);
+  await assertComputerStoragePathSafe(root, computerDirectory, { platform, home });
   const limaHome = computerStoragePath(root, computerDirectory, { platform, home });
   const env = {
     PATH: ['/usr/bin', '/bin', '/usr/sbin', '/sbin'].join(delimiter),
@@ -612,16 +617,48 @@ export async function preloadRuntimeImages({
   return loaded;
 }
 
-async function removeUnmountedRuntimes(assets) {
-  const homes = join(homedir(), '.nod-desktop');
+export async function removeUnmountedRuntimes(
+  assets,
+  { computerDirectory, home = homedir(), cacheRoot, olderThan } = {},
+) {
+  const homes = join(computerDirectory ? resolve(computerDirectory) : home, '.nod-desktop');
+  const namespace = await lstat(homes).catch((error) => {
+    if (error.code === 'ENOENT') return undefined;
+    throw error;
+  });
   const keep = [];
-  for (const name of await readdir(homes)) {
-    const config = await readFile(join(homes, name, 'nod/lima.yaml'), 'utf8').catch((error) => {
-      if (error.code !== 'ENOENT') throw error;
-    });
-    if (config) keep.push(...JSON.parse(config).mounts.map((mount) => mount.location));
+  if (namespace) {
+    if (!namespace.isDirectory())
+      throw new Error('Nod cannot inspect its private-computer storage namespace safely.');
+    for (const name of await readdir(homes)) {
+      const profileHome = join(homes, name);
+      const profile = await lstat(profileHome).catch((error) => {
+        if (error.code === 'ENOENT') return undefined;
+        throw error;
+      });
+      if (!profile?.isDirectory()) continue;
+      const config = await readFile(join(profileHome, 'nod/lima.yaml'), 'utf8').catch((error) => {
+        if (error.code !== 'ENOENT') throw error;
+      });
+      if (!config) continue;
+      const mounts = JSON.parse(config).mounts;
+      if (!Array.isArray(mounts))
+        throw new Error('A Nod private-computer configuration has invalid runtime mounts.');
+      keep.push(
+        ...mounts.map((mount) => {
+          if (!mount || typeof mount.location !== 'string')
+            throw new Error('A Nod private-computer configuration has an invalid runtime mount.');
+          return mount.location;
+        }),
+      );
+    }
   }
-  await removeUnusedRuntimes({ current: assets, keep });
+  await removeUnusedRuntimes({
+    current: assets,
+    keep,
+    ...(cacheRoot ? { cacheRoot } : {}),
+    ...(olderThan === undefined ? {} : { olderThan }),
+  });
 }
 
 export async function removeStaleImages(runDocker, runGuest, manifest) {
