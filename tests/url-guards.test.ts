@@ -411,6 +411,30 @@ test('an owner-entered address binds every request and consent page to that inst
   );
 });
 
+test('owner-entered overlay-network addresses accept CGNAT and Tailscale IPv6 origins', async () => {
+  const cases = [
+    {
+      origin: 'http://100.64.0.10:8080',
+      endpoint: 'http://100.64.0.10:8080/mcp',
+      address: '100.64.0.10',
+      otherEndpoint: 'http://100.64.0.11:8080/mcp',
+    },
+    {
+      origin: 'http://[fd7a:115c:a1e0::1]:8080',
+      endpoint: 'http://[fd7a:115c:a1e0::1]:8080/mcp',
+      address: 'fd7a:115c:a1e0::1',
+      otherEndpoint: 'http://[fd7a:115c:a1e0::2]:8080/mcp',
+    },
+  ];
+  for (const { origin, endpoint, address, otherEndpoint } of cases) {
+    const check = ownerAddress(origin);
+    const result = await check(endpoint);
+    assert.equal(result.url.href, endpoint);
+    assert.equal(result.address, address);
+    await assert.rejects(check(otherEndpoint), /saved address/);
+  }
+});
+
 test('chat HTML cannot run scripts, submit forms, load trackers or link to local internals', () => {
   const result = render(
     '<u onclick="alert(1)" style="color:red">x</u><script>alert(1)</script><style>body{display:none}</style><iframe src="https://evil.example"></iframe><form action="/api/messages"><input name="text" value="bad"></form><img src="https://evil.example/track" onerror="alert(1)"><a href="javascript:alert(1)">bad</a><a href="/api/state">internal</a>\n\n![picture](https://evil.example/pixel)',
