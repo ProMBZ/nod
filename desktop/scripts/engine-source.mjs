@@ -15,6 +15,7 @@ export async function copyEngineSource({ root, target, platform = 'darwin' }) {
     'desktop/main/system-certificates.mjs',
     'desktop/main/onepassword.mjs',
     'desktop/runtime/index.mjs',
+    'desktop/runtime/computer-storage.mjs',
     'desktop/runtime/assets.mjs',
     'desktop/runtime/guest-config.mjs',
     ...(platform === 'win32'
@@ -42,6 +43,13 @@ export async function verifyApplicationRuntime(
     executable = join(application, 'Contents/MacOS/nod'),
   } = {},
 ) {
+  const packagedComputerStorage = join(
+    application,
+    'Contents/Resources/app/runtime/computer-storage.mjs',
+  );
+  await access(packagedComputerStorage);
+  const packagedComputerStorageUrl = pathToFileURL(packagedComputerStorage).href;
+  await access(join(engine, 'desktop/runtime/computer-storage.mjs'));
   const environment = Object.fromEntries(
     ['HOME', 'TMPDIR', 'PATH', 'LANG']
       .filter((name) => process.env[name])
@@ -52,6 +60,8 @@ import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
 assert.equal(process.versions.electron, ${JSON.stringify(electronVersion)});
 assert.equal(process.arch, ${JSON.stringify(process.arch)});
+await import(pathToFileURL(resolve('desktop/runtime/computer-storage.mjs')).href);
+await import(${JSON.stringify(packagedComputerStorageUrl)});
 await import('@earendil-works/pi-coding-agent');
 await import('pi-web-access/dist/index.js');
 const { register } = await import('tsx/esm/api');
