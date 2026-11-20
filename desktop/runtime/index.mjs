@@ -1155,6 +1155,7 @@ export async function removeComputer(options) {
   const dataRoot = resolve(options.dataRoot || options.root);
   const limaHome = computerStoragePath(dataRoot, options.computerDirectory);
   if (options.computerDirectory) {
+    // Deleting the existing computer allocates no new storage, so a full drive must not block cleanup.
     const selected = await assertComputerDirectoryReady(options.computerDirectory, {
       dataRoot,
       platform: process.platform,
