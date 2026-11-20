@@ -19,6 +19,7 @@ import { pipeline } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 import { assetHash, resumableDownload, timeLeft } from './assets.mjs';
 import { execute, finishRuntime } from './index.mjs';
+import { assertComputerDirectoryReady, computerIdentity, computerStoragePath } from './computer-storage.mjs';
 
 const holders = new Map();
 const distributionName = (root) =>
@@ -238,6 +239,12 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
   const dataRoot = resolve(options.dataRoot || options.root);
   const resourcesPath = resolve(options.resourcesPath || options.resources);
   const signal = options.signal;
+  if (options.computerDirectory) {
+    await assertComputerDirectoryReady(options.computerDirectory, {
+      dataRoot,
+      platform: process.platform,
+    });
+  }
   const onStatus = options.onStatus || options.onProgress || (() => {});
   const status = (value) => onStatus({ stage: 'computer', ...value });
   const hostEnvironment = windowsEnvironment();
@@ -298,6 +305,7 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
   if (transportHash.digest('hex') !== manifest.transport.sha256)
     throw new Error('The Windows transport failed its integrity check.');
   const distribution = distributionName(dataRoot);
+  const computerPath = computerStoragePath(dataRoot, options.computerDirectory);
   const configPath = join(controlRoot, 'state.json');
   let saved;
   try {
@@ -318,7 +326,9 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
     saved &&
     (saved.version !== 1 ||
       saved.distribution !== distribution ||
-      !/^[a-f0-9]{64}$/.test(saved.password))
+      !/^[a-f0-9]{64}$/.test(saved.password) ||
+      (saved.computerPath !== undefined && saved.computerPath !== computerPath) ||
+      (options.computerDirectory && saved.computerPath !== computerPath))
   )
     throw new Error('The Nod computer configuration needs recovery.');
   saved ??= {
@@ -326,7 +336,9 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
     distribution,
     password: randomBytes(32).toString('hex'),
     guest: manifest.guest.sha256,
+    computerPath,
   };
+  saved.computerPath = computerPath;
   const guestArgs = ['--distribution', distribution, '--user', 'root', '--exec'];
   const temporaryState = `${configPath}.${randomBytes(6).toString('hex')}.tmp`;
   await writeFile(temporaryState, JSON.stringify(saved), { flag: 'wx' });
@@ -392,10 +404,10 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
       if (expanded !== manifest.guest.expandedBytes)
         throw new Error('The Windows computer image has an unexpected size.');
       if (!existing) {
-        await mkdir(join(controlRoot, 'wsl'), { recursive: true });
+        await mkdir(computerPath, { recursive: true });
         await execute(
           wsl,
-          ['--import', distribution, join(controlRoot, 'wsl'), guest, '--version', '2'],
+          ['--import', distribution, computerPath, guest, '--version', '2'],
           { env: hostEnvironment, signal, timeout: 1_200_000 },
         );
       } else {
@@ -541,10 +553,20 @@ export async function stopWindowsRuntime(options) {
   }
 }
 
-export async function removeWindowsComputer(dataRoot) {
+export async function removeWindowsComputer(dataRoot, computerDirectory) {
   const distribution = distributionName(dataRoot);
+  const computerPath = computerStoragePath(dataRoot, computerDirectory);
   const env = windowsEnvironment();
   const wsl = join(env.SYSTEMROOT, 'System32/wsl.exe');
   if ((await distributions(wsl, env).catch(() => [])).includes(distribution))
     await execute(wsl, ['--unregister', distribution], { env, timeout: 300_000 });
+  await rm(computerPath, { recursive: true, force: true });
+  if (computerDirectory) {
+    await rm(join(computerDirectory, '.nod-desktop', computerIdentity(dataRoot)), {
+      recursive: true,
+      force: true,
+    });
+    const { rmdir } = await import('node:fs/promises');
+    await rmdir(join(computerDirectory, '.nod-desktop')).catch(() => {});
+  }
 }
