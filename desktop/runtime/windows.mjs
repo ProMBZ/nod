@@ -565,6 +565,21 @@ export async function stopWindowsRuntime(options) {
 export async function removeWindowsComputer(dataRoot, computerDirectory) {
   const distribution = distributionName(dataRoot);
   const computerPath = computerStoragePath(dataRoot, computerDirectory);
+  const configPath = join(dataRoot, 'desktop-runtime/state.json');
+  let saved;
+  try {
+    saved = JSON.parse(await readFile(configPath, 'utf8'));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw new Error('The Nod computer configuration needs recovery.');
+  }
+  if (
+    saved &&
+    (saved.version !== 1 ||
+      saved.distribution !== distribution ||
+      (saved.computerPath !== undefined && saved.computerPath !== computerPath) ||
+      (computerDirectory && saved.computerPath !== computerPath))
+  )
+    throw new Error('The Nod computer configuration needs recovery.');
   const env = windowsEnvironment();
   const wsl = join(env.SYSTEMROOT, 'System32/wsl.exe');
   const available = await distributions(wsl, env);
