@@ -2593,7 +2593,8 @@ async function preloadUpdateImages(assets, signal) {
   const { preloadRuntimeImages } = await import(
     pathToFileURL(join(engineRoot, 'desktop/runtime/index.mjs')).href
   );
-  await preloadRuntimeImages({ dataRoot: profileRoot, assets, signal }).catch(
+  const { computerDirectory } = await settings.get();
+  await preloadRuntimeImages({ dataRoot: profileRoot, assets, signal, computerDirectory }).catch(
     (error) => void writeDiagnostic(error.message).catch(() => {}),
   );
 }
