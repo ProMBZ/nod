@@ -138,7 +138,6 @@ export async function assertComputerDirectoryReady(directory, options = {}) {
   return validateComputerDirectory(directory, options);
 }
 
-
 /**
  * Refuse symlinked or non-directory nodes inside the custom storage namespace.
  * The selected volume is owner-controlled; the profile-specific path beneath
