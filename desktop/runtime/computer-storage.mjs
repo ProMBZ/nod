@@ -131,14 +131,25 @@ export async function assertComputerDirectoryReady(directory, options = {}) {
 export async function assertComputerStoragePathSafe(
   dataRoot,
   computerDirectory,
-  { platform = process.platform } = {},
+  { platform = process.platform, home = homedir() } = {},
 ) {
-  if (!computerDirectory) return;
-
-  const directory = resolve(computerDirectory);
-  const profileDirectory = join(directory, '.nod-desktop', computerIdentity(dataRoot));
-  const components = [join(directory, '.nod-desktop'), profileDirectory];
-  components.push(join(profileDirectory, platform === 'win32' ? 'wsl' : 'nod'));
+  const namespace = computerDirectory
+    ? join(resolve(computerDirectory), '.nod-desktop')
+    : platform === 'win32'
+      ? join(resolve(dataRoot), 'desktop-runtime')
+      : join(home, '.nod-desktop');
+  const profileDirectory =
+    platform === 'win32' && !computerDirectory
+      ? computerStoragePath(dataRoot, undefined, { platform, home })
+      : join(namespace, computerIdentity(dataRoot));
+  const runtimeDirectory =
+    platform === 'win32'
+      ? computerDirectory
+        ? join(profileDirectory, 'wsl')
+        : profileDirectory
+      : join(profileDirectory, 'nod');
+  const components = [namespace, profileDirectory];
+  if (runtimeDirectory !== profileDirectory) components.push(runtimeDirectory);
 
   for (const path of components) {
     let metadata;
