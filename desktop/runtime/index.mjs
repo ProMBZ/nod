@@ -242,6 +242,7 @@ async function prepare(options, onComputerStart) {
       dataRoot,
       platform: process.platform,
       flatpak: Boolean(process.env.FLATPAK_ID),
+      minimumFreeBytes: 0,
     });
   }
   await mkdir(dataRoot, { recursive: true, mode: 0o700 });
