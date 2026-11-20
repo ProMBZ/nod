@@ -1,6 +1,6 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, lstat, open, realpath, rm, statfs } from 'node:fs/promises';
+import { access, open, realpath, rm, stat, statfs } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
@@ -64,12 +64,12 @@ export async function validateComputerDirectory(
   const requested = resolve(value);
   let metadata;
   try {
-    metadata = await lstat(requested);
+    metadata = await stat(requested);
   } catch (error) {
     throw new Error(`Nod cannot use "${requested}": ${error.message}`);
   }
-  if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
-    throw new Error(`Nod cannot use "${requested}": choose a real folder, not a file or symbolic link.`);
+  if (!metadata.isDirectory()) {
+    throw new Error(`Nod cannot use "${requested}": choose a folder, not a file.`);
   }
 
   let directory;
