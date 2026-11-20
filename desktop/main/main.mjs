@@ -205,20 +205,28 @@ async function persistPendingComputerDirectoryChange(from, to) {
   const pending = { version: 1, from: from ?? null, to };
   try {
     const existing = JSON.parse(await readFile(computerDirectoryChangePath, 'utf8'));
-    if (JSON.stringify(existing) === JSON.stringify(pending)) return;
-    throw new Error('A different private-computer storage change still needs recovery.');
+    if (
+      !existing ||
+      existing.version !== 1 ||
+      (existing.from ?? null) !== pending.from ||
+      typeof existing.to !== 'string' ||
+      !isAbsolute(existing.to) ||
+      resolve(existing.to) !== existing.to
+    )
+      throw new Error('A different private-computer storage change still needs recovery.');
+    if (existing.to === pending.to) return;
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
   }
   const temporary = `${computerDirectoryChangePath}.${randomUUID()}.tmp`;
-  const handle = await open(temporary, 'wx', 0o600);
   try {
-    await handle.writeFile(JSON.stringify(pending));
-    await handle.sync();
-  } finally {
-    await handle.close();
-  }
-  try {
+    const handle = await open(temporary, 'wx', 0o600);
+    try {
+      await handle.writeFile(JSON.stringify(pending));
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
     await rename(temporary, computerDirectoryChangePath);
     await syncDirectory(profileRoot);
   } finally {
@@ -232,7 +240,9 @@ async function recoverPendingComputerDirectoryChange() {
     pending = JSON.parse(await readFile(computerDirectoryChangePath, 'utf8'));
   } catch (error) {
     if (error.code === 'ENOENT') return;
-    throw new Error('Nod could not read the pending private-computer storage change.');
+    throw new Error('Nod could not read the pending private-computer storage change.', {
+      cause: error,
+    });
   }
   if (
     !pending ||
@@ -2590,13 +2600,15 @@ async function notifyUpdate(candidate) {
 }
 
 async function preloadUpdateImages(assets, signal) {
-  const { preloadRuntimeImages } = await import(
-    pathToFileURL(join(engineRoot, 'desktop/runtime/index.mjs')).href
-  );
-  const { computerDirectory } = await settings.get();
-  await preloadRuntimeImages({ dataRoot: profileRoot, assets, signal, computerDirectory }).catch(
-    (error) => void writeDiagnostic(error.message).catch(() => {}),
-  );
+  try {
+    const { preloadRuntimeImages } = await import(
+      pathToFileURL(join(engineRoot, 'desktop/runtime/index.mjs')).href
+    );
+    const { computerDirectory } = await settings.get();
+    await preloadRuntimeImages({ dataRoot: profileRoot, assets, signal, computerDirectory });
+  } catch (error) {
+    await writeDiagnostic(error.message).catch(() => {});
+  }
 }
 
 async function restartForUpdate() {
@@ -3440,8 +3452,6 @@ else {
         if (quitting) throw new Error('Nod is closing.');
         if (lifecycle.busy)
           throw new Error('Wait for the private computer to finish its current task.');
-        await recoverPendingComputerDirectoryChange();
-
         const current = await settings.get();
         const parent = BrowserWindow.fromWebContents(event.sender);
         const selection = await dialog.showOpenDialog(parent, {
