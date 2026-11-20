@@ -20,7 +20,11 @@ import { delimiter, join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pipeline } from 'node:stream/promises';
 import { guestConfiguration, protectGuest, protectNetworks } from './guest-config.mjs';
-import { assertComputerDirectoryReady, computerStoragePath } from './computer-storage.mjs';
+import {
+  assertComputerDirectoryReady,
+  assertComputerStoragePathSafe,
+  computerStoragePath,
+} from './computer-storage.mjs';
 import {
   assetHash,
   findRuntimeAssets,
@@ -238,12 +242,16 @@ async function prepare(options, onComputerStart) {
   const onStatus = options.onStatus || options.onProgress || (() => {});
   const signal = options.signal;
   if (options.computerDirectory) {
-    await assertComputerDirectoryReady(options.computerDirectory, {
+    const selected = await assertComputerDirectoryReady(options.computerDirectory, {
       dataRoot,
       platform: process.platform,
       flatpak: Boolean(process.env.FLATPAK_ID),
       minimumFreeBytes: 0,
     });
+    if (selected !== resolve(options.computerDirectory)) {
+      throw new Error('The private-computer storage folder changed after it was selected. Choose it again in Settings.');
+    }
+    await assertComputerStoragePathSafe(dataRoot, options.computerDirectory);
   }
   await mkdir(dataRoot, { recursive: true, mode: 0o700 });
   const controlRoot = join(dataRoot, 'desktop-runtime');
@@ -1101,12 +1109,16 @@ export async function removeComputer(options) {
   const dataRoot = resolve(options.dataRoot || options.root);
   const limaHome = computerStoragePath(dataRoot, options.computerDirectory);
   if (options.computerDirectory) {
-    await assertComputerDirectoryReady(options.computerDirectory, {
+    const selected = await assertComputerDirectoryReady(options.computerDirectory, {
       dataRoot,
       platform: process.platform,
       flatpak: process.platform === 'linux' && Boolean(process.env.FLATPAK_ID),
       minimumFreeBytes: 0,
     });
+    if (selected !== resolve(options.computerDirectory)) {
+      throw new Error('The private-computer storage folder changed after it was selected. Choose it again in Settings.');
+    }
+    await assertComputerStoragePathSafe(dataRoot, options.computerDirectory);
   }
   if (process.platform === 'win32') {
     const { removeWindowsComputer } = await import('./windows.mjs');
