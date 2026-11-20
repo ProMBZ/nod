@@ -12,6 +12,7 @@ import {
   removeComputer,
   removeUnmountedRuntimes,
 } from '../runtime/index.mjs';
+import { removeWindowsComputer } from '../runtime/windows.mjs';
 import {
   computerIdentity,
   assertComputerStoragePathSafe,
@@ -335,6 +336,37 @@ test(
     await assert.rejects(readFile(join(ownComputer, 'synthetic-disk')));
   },
 );
+
+test('Windows cleanup removes the selected folder when WSL listing fails', async (t) => {
+  const root = await temporary(t);
+  const dataRoot = join(root, 'profile');
+  const computerDirectory = join(root, 'external');
+  const computerPath = computerStoragePath(dataRoot, computerDirectory, { platform: 'win32' });
+  const distribution = `nod-${createHash('sha256').update(dataRoot.toLowerCase()).digest('hex').slice(0, 12)}`;
+  await mkdir(join(dataRoot, 'desktop-runtime'), { recursive: true });
+  await mkdir(computerPath, { recursive: true });
+  await writeFile(join(computerPath, 'disk.vhdx'), 'synthetic WSL disk');
+  await writeFile(
+    join(dataRoot, 'desktop-runtime/state.json'),
+    JSON.stringify({ version: 1, distribution, computerPath }),
+  );
+
+  let unregisterCalls = 0;
+  await removeWindowsComputer(dataRoot, computerDirectory, {
+    getEnvironment: () => ({ SYSTEMROOT: 'C:\\Windows' }),
+    listDistributions: async () => {
+      throw new Error('wsl --list failed');
+    },
+    executeCommand: async () => {
+      unregisterCalls++;
+      return '';
+    },
+  });
+
+  assert.equal(unregisterCalls, 0);
+  await assert.rejects(readFile(join(computerPath, 'disk.vhdx')));
+  await assert.rejects(readFile(join(computerDirectory, '.nod-desktop', createHash('sha256').update(dataRoot.toLowerCase()).digest('hex').slice(0, 12), 'wsl')));
+});
 
 test('runtime image preloading rejects a symlinked custom namespace before contacting Docker', async (t) => {
   const root = await temporary(t);
