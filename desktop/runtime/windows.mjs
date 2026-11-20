@@ -21,6 +21,7 @@ import { createGunzip } from 'node:zlib';
 import { assetHash, resumableDownload, timeLeft } from './assets.mjs';
 import { execute, finishRuntime } from './index.mjs';
 import {
+  MINIMUM_COMPUTER_STORAGE_BYTES,
   assertComputerDirectoryReady,
   assertComputerStoragePathSafe,
   computerIdentity,
@@ -249,7 +250,7 @@ export async function prepareWindowsRuntime(options, onComputerStart) {
     const selected = await assertComputerDirectoryReady(options.computerDirectory, {
       dataRoot,
       platform: process.platform,
-      minimumFreeBytes: 0,
+      minimumFreeBytes: MINIMUM_COMPUTER_STORAGE_BYTES,
     });
     if (selected !== resolve(options.computerDirectory)) {
       throw new Error('The private-computer storage folder changed after it was selected. Choose it again in Settings.');
