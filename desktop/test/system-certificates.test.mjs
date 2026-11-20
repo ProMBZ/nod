@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { X509Certificate } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import test from 'node:test';
@@ -122,7 +123,9 @@ test('trustSystemCertificates uses injected environment and file reader', () => 
     ],
   );
   assert.ok(
-    calls[2][1].some((pem) => pem.includes('AC RAIZ FNMT-RCM SERVIDORES SEGUROS')),
+    calls[2][1].some((pem) =>
+      new X509Certificate(pem).subject.includes('CN=AC RAIZ FNMT-RCM SERVIDORES SEGUROS'),
+    ),
   );
   assert.equal(process.env.SSL_CERT_FILE, originalSslCertFile);
 });
