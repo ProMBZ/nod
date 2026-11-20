@@ -1099,6 +1099,14 @@ export async function stopRuntime(options) {
 export async function removeComputer(options) {
   const dataRoot = resolve(options.dataRoot || options.root);
   const limaHome = computerStoragePath(dataRoot, options.computerDirectory);
+  if (options.computerDirectory) {
+    await assertComputerDirectoryReady(options.computerDirectory, {
+      dataRoot,
+      platform: process.platform,
+      flatpak: process.platform === 'linux' && Boolean(process.env.FLATPAK_ID),
+      minimumFreeBytes: 0,
+    });
+  }
   if (process.platform === 'win32') {
     const { removeWindowsComputer } = await import('./windows.mjs');
     await removeWindowsComputer(dataRoot, options.computerDirectory);
