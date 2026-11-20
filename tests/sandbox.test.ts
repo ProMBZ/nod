@@ -401,7 +401,7 @@ test('workspace command rejects null bytes before launching its supervisor', asy
   let launches = 0;
   try {
     await assert.rejects(
-      f.run(['fixture', 'bad\\u0000argument'], {
+      f.run(['fixture', 'bad\u0000argument'], {
         spawn: () => {
           launches++;
           throw new Error('The supervisor should not be launched.');
