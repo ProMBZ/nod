@@ -167,7 +167,7 @@ test('custom computer namespaces reject symbolic links before Lima or WSL can fo
   await mkdir(join(directory, '.nod-desktop', computerIdentity(dataRoot)));
   await symlink(outside, join(directory, '.nod-desktop', computerIdentity(dataRoot), 'nod'));
   await assert.rejects(
-    assertComputerStoragePathSafe(dataRoot, directory),
+    assertComputerStoragePathSafe(dataRoot, directory, { platform: 'linux' }),
     /not a normal directory/,
   );
 
