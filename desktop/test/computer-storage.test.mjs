@@ -117,16 +117,16 @@ test('Flatpak accepts only its already granted storage roots', async (t) => {
   );
 });
 
-test('a folder that is a symbolic link is rejected', async (t) => {
+test('a symbolic-link selection is resolved to its real folder before use', async (t) => {
   const root = await temporary(t);
   const directory = join(root, 'real');
   const link = join(root, 'linked');
   await mkdir(directory);
   await symlink(directory, link);
 
-  await assert.rejects(
-    validateComputerDirectory(link, { minimumFreeBytes: 0 }),
-    /real folder/,
+  assert.equal(
+    await validateComputerDirectory(link, { minimumFreeBytes: 0 }),
+    directory,
   );
 });
 
