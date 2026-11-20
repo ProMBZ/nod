@@ -86,7 +86,7 @@ type DesktopWindow = Window & {
     localRuntime?: LocalRuntime;
     remote?: boolean;
     ready?(): Promise<void>;
-    getSettings?(): Promise<
+    getSettings(): Promise<
       DesktopSettings & { onboardingPreferenceStep?: LocalSetup['preferenceStep'] }
     >;
     chooseComputerDirectory?(): Promise<string | null>;
