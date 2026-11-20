@@ -1,6 +1,6 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { constants } from 'node:fs';
-import { access, open, realpath, rm, stat, statfs } from 'node:fs/promises';
+import { access, lstat, open, realpath, rm, stat, statfs } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 
@@ -136,4 +136,40 @@ export async function validateComputerDirectory(
 /** Recheck the selected volume at runtime, including after a removable drive is reconnected. */
 export async function assertComputerDirectoryReady(directory, options = {}) {
   return validateComputerDirectory(directory, options);
+}
+
+
+/**
+ * Refuse symlinked or non-directory nodes inside the custom storage namespace.
+ * The selected volume is owner-controlled; the profile-specific path beneath
+ * it must not be redirected into another folder before Lima or WSL uses it.
+ */
+export async function assertComputerStoragePathSafe(
+  dataRoot,
+  computerDirectory,
+  { platform = process.platform } = {},
+) {
+  if (!computerDirectory) return;
+
+  const directory = resolve(computerDirectory);
+  const components = [
+    join(directory, '.nod-desktop'),
+    join(directory, '.nod-desktop', computerIdentity(dataRoot)),
+  ];
+  if (platform === 'win32') components.push(join(components[1], 'wsl'));
+
+  for (const path of components) {
+    let metadata;
+    try {
+      metadata = await lstat(path);
+    } catch (error) {
+      if (error.code === 'ENOENT') break;
+      throw new Error(`Nod cannot inspect its private-computer folder "${path}": ${error.message}`);
+    }
+    if (metadata.isSymbolicLink() || !metadata.isDirectory()) {
+      throw new Error(
+        `Nod cannot use "${path}" because a private-computer storage folder is not a normal directory. Rename or remove that entry, then try again.`,
+      );
+    }
+  }
 }
